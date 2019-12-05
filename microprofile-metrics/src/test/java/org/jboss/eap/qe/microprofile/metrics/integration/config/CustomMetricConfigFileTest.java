@@ -1,0 +1,40 @@
+package org.jboss.eap.qe.microprofile.metrics.integration.config;
+
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
+
+import org.jboss.arquillian.container.test.api.Deployment;
+import org.jboss.arquillian.container.test.api.RunAsClient;
+import org.jboss.arquillian.junit.Arquillian;
+import org.jboss.as.controller.PathAddress;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.asset.StringAsset;
+import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.junit.runner.RunWith;
+
+@RunWith(Arquillian.class)
+@RunAsClient
+public class CustomMetricConfigFileTest extends CustomMetricBaseTest {
+
+    private static final PathAddress CONFIG_SOURCE_PROPS_ADDRESS = PathAddress.pathAddress()
+            .append(SUBSYSTEM, "microprofile-config-smallrye")
+            .append("config-source", "props");
+
+    @Deployment(testable = false)
+    public static WebArchive createDeployment() {
+        WebArchive webArchive = ShrinkWrap.create(WebArchive.class, CustomMetricConfigFileTest.class.getSimpleName() + ".war")
+                .addClasses(CustomCounterIncrementProvider.class, CustomCounterMetric.class, CustomMetricService.class,
+                        CustomMetricApplication.class, CustomMetricAppInitializer.class)
+                .addAsManifestResource(new StringAsset(INCREMENT_CONFIG_PROPERTY + "=" + DEFAULT_VALUE),
+                        "microprofile-config.properties")
+                .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+        return webArchive;
+    }
+
+    void setConfigProperties(int increment) {
+        /* invalid scenario */ }
+
+    @Override
+    public void testCustomMetricWichChange() {
+        /* invalid scenario */ }
+}
