@@ -15,14 +15,14 @@ public class FTCustomConfigSource implements ConfigSource {
     @Override
     public Map<String, String> getProperties() {
         System.out.println("==================> About to read properties from the disk...");
+        String filename = System.getProperty(FILENAME_PROPERTY);
         Map<String, String> props = new HashMap<>();
-        try {
-            String filename = System.getProperty(FILENAME_PROPERTY);
+        try (FileInputStream is = new FileInputStream(filename)) {
             if (filename == null) {
                 throw new RuntimeException(FILENAME_PROPERTY + " property not defined");
             }
             Properties properties = new Properties();
-            properties.load(new FileInputStream(filename));
+            properties.load(is);
             for (String key : properties.stringPropertyNames()) {
                 props.put(key, properties.getProperty(key));
             }
