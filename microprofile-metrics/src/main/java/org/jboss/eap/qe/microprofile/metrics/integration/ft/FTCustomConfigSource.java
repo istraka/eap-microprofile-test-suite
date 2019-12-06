@@ -14,6 +14,7 @@ public class FTCustomConfigSource implements ConfigSource {
 
     @Override
     public Map<String, String> getProperties() {
+        System.out.println("==================> About to read properties from the disk...");
         Map<String, String> props = new HashMap<>();
         try {
             String filename = System.getProperty(FILENAME_PROPERTY);
@@ -28,6 +29,7 @@ public class FTCustomConfigSource implements ConfigSource {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println("==================> Success!");
         return Collections.unmodifiableMap(props);
     }
 
