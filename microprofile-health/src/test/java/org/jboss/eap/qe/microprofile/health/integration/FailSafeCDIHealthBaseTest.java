@@ -10,6 +10,8 @@ import static org.hamcrest.Matchers.not;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -96,8 +98,19 @@ public abstract class FailSafeCDIHealthBaseTest {
     public void testReadinessEndpointUp() throws Exception {
         setConfigProperties(true, true, false, false);
         List<Map<String, String>> checks = new ArrayList<>(3);
-        checks.add(Map.of("name", "dummyLiveness", "status", "UP"));
-        checks.add(Map.of("name", "dummyReadiness", "status", "DOWN"));
+        // TODO Java 11 Map<String, String> liveCheck = Map.of( "name", "dummyLiveness", "status", "UP");
+        checks.add(Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyLiveness");
+                put("status", "UP");
+            }
+        }));
+        checks.add(Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyReadiness");
+                put("status", "DOWN");
+            }
+        }));
         healthRequest.basePath("health/ready").get().then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
@@ -118,8 +131,19 @@ public abstract class FailSafeCDIHealthBaseTest {
     @RunAsClient
     public void testHealthEndpointDownInMaintenace() throws Exception {
         setConfigProperties(false, true, true, false);
-        Map<String, String> liveCheck = Map.of("name", "dummyLiveness", "status", "DOWN");
-        Map<String, String> readyCheck = Map.of("name", "dummyReadiness", "status", "DOWN");
+        // TODO Java 11 Map<String, String> liveCheck = Map.of( "name", "dummyLiveness", "status", "DOWN");
+        Map<String, String> liveCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyLiveness");
+                put("status", "DOWN");
+            }
+        });
+        Map<String, String> readyCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyReadiness");
+                put("status", "DOWN");
+            }
+        });
         healthRequest.get().then()
                 .statusCode(503)
                 .contentType(ContentType.JSON)

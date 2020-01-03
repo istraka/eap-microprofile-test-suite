@@ -7,6 +7,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.jboss.arquillian.container.test.api.RunAsClient;
@@ -37,8 +39,19 @@ public abstract class FailSafeCDIHealthDynamicBaseTest extends FailSafeCDIHealth
                         "checks.name", containsInAnyOrder("dummyLiveness", "dummyReadiness"));
 
         setConfigProperties(true, false, false, true);
-        Map<String, String> liveCheck = Map.of("name", "dummyLiveness", "status", "UP");
-        Map<String, String> readyCheck = Map.of("name", "dummyReadiness", "status", "DOWN");
+        // TODO Java 11 Map<String, String> liveCheck = Map.of( "name", "dummyLiveness", "status", "UP");
+        Map<String, String> liveCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyLiveness");
+                put("status", "UP");
+            }
+        });
+        Map<String, String> readyCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyReadiness");
+                put("status", "DOWN");
+            }
+        });
         healthRequest.get().then()
                 .statusCode(503)
                 .contentType(ContentType.JSON)
@@ -119,8 +132,19 @@ public abstract class FailSafeCDIHealthDynamicBaseTest extends FailSafeCDIHealth
     @RunAsClient
     public void testHealthEndpointDownToUpInMaintenace() throws Exception {
         setConfigProperties(true, true, true, false);
-        Map<String, String> liveCheck = Map.of("name", "dummyLiveness", "status", "UP");
-        Map<String, String> readyCheck = Map.of("name", "dummyReadiness", "status", "DOWN");
+        // TODO Java 11 Map<String, String> liveCheck = Map.of( "name", "dummyLiveness", "status", "UP");
+        Map<String, String> liveCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyLiveness");
+                put("status", "UP");
+            }
+        });
+        Map<String, String> readyCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyReadiness");
+                put("status", "DOWN");
+            }
+        });
         healthRequest.get().then()
                 .statusCode(503)
                 .contentType(ContentType.JSON)
@@ -130,7 +154,13 @@ public abstract class FailSafeCDIHealthDynamicBaseTest extends FailSafeCDIHealth
                         "checks", containsInAnyOrder(liveCheck, readyCheck));
 
         setConfigProperties(true, false, true, true);
-        readyCheck = Map.of("name", "dummyReadiness", "status", "UP");
+        // TODO Java11 readyCheck = Map.of("name", "dummyReadiness", "status", "UP");
+        readyCheck = Collections.unmodifiableMap(new HashMap<String, String>() {
+            {
+                put("name", "dummyReadiness");
+                put("status", "UP");
+            }
+        });
         healthRequest.get().then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)

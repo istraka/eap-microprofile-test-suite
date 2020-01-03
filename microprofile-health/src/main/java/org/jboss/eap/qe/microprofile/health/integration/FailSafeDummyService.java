@@ -48,8 +48,8 @@ public class FailSafeDummyService {
         return readyInMainenance.get();
     }
 
-    @Counted(name = "opening-resources-counter")
-    private void simulateOpeningResources() throws IOException {
+    @Counted(name = "hello-count", absolute = true, displayName = "Hello Count", description = "Number of hello invocations", reusable = true)
+    public void simulateOpeningResources() throws IOException {
         if (inMaintanance.get()) {
             throw new IOException("In maintanance");
         }

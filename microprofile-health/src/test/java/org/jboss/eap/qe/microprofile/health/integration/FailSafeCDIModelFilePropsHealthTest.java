@@ -1,9 +1,11 @@
 package org.jboss.eap.qe.microprofile.health.integration;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import org.apache.commons.io.FileUtils;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit.Arquillian;
@@ -30,21 +32,21 @@ public class FailSafeCDIModelFilePropsHealthTest extends FailSafeCDIHealthBaseTe
     private byte[] inMaintananceBytes;
     private byte[] readyInMaintananceBytes;
 
-    File liveFile = new File(
+    Path liveFile = Paths.get(
             FailSafeCDIModelFilePropsHealthTest.class.getResource("file-props/" + FailSafeDummyService.LIVE_CONFIG_PROPERTY)
-                    .getFile());
+                    .getPath());
 
-    File readyFile = new File(
+    Path readyFile = Paths.get(
             FailSafeCDIModelFilePropsHealthTest.class.getResource("file-props/" + FailSafeDummyService.READY_CONFIG_PROPERTY)
                     .getFile());
 
-    File inMainenanceFile = new File(
+    Path inMainenanceFile = Paths.get(
             FailSafeCDIModelFilePropsHealthTest.class
-                    .getResource("file-props/" + FailSafeDummyService.IN_MAINTENANCE_CONFIG_PROPERTY).getFile());
+                    .getResource("file-props/" + FailSafeDummyService.IN_MAINTENANCE_CONFIG_PROPERTY).getPath());
 
-    File readyInMainenanceFile = new File(
+    Path readyInMainenanceFile = Paths.get(
             FailSafeCDIModelFilePropsHealthTest.class
-                    .getResource("file-props/" + FailSafeDummyService.READY_IN_MAINTENANCE_CONFIG_PROPERTY).getFile());
+                    .getResource("file-props/" + FailSafeDummyService.READY_IN_MAINTENANCE_CONFIG_PROPERTY).getPath());
 
     @Deployment(testable = false)
     public static WebArchive createDeployment() {
@@ -56,26 +58,26 @@ public class FailSafeCDIModelFilePropsHealthTest extends FailSafeCDIHealthBaseTe
 
     @Before
     public void backup() throws IOException {
-        liveBytes = FileUtils.readFileToByteArray(liveFile);
-        readyBytes = FileUtils.readFileToByteArray(readyFile);
-        inMaintananceBytes = FileUtils.readFileToByteArray(inMainenanceFile);
-        readyInMaintananceBytes = FileUtils.readFileToByteArray(inMainenanceFile);
+        liveBytes = Files.readAllBytes(liveFile);
+        readyBytes = Files.readAllBytes(readyFile);
+        inMaintananceBytes = Files.readAllBytes(inMainenanceFile);
+        readyInMaintananceBytes = Files.readAllBytes(inMainenanceFile);
     }
 
     @After
     public void restore() throws IOException {
-        FileUtils.writeByteArrayToFile(liveFile, liveBytes);
-        FileUtils.writeByteArrayToFile(readyFile, readyBytes);
-        FileUtils.writeByteArrayToFile(inMainenanceFile, inMaintananceBytes);
-        FileUtils.writeByteArrayToFile(readyInMainenanceFile, readyInMaintananceBytes);
+        Files.write(liveFile, liveBytes);
+        Files.write(readyFile, readyBytes);
+        Files.write(inMainenanceFile, inMaintananceBytes);
+        Files.write(readyInMainenanceFile, readyInMaintananceBytes);
     }
 
     @Override
     void setConfigProperties(boolean live, boolean ready, boolean inMaintanance, boolean readyInMainenance) throws Exception {
-        FileUtils.writeStringToFile(liveFile, Boolean.toString(live));
-        FileUtils.writeStringToFile(readyFile, Boolean.toString(ready));
-        FileUtils.writeStringToFile(inMainenanceFile, Boolean.toString(inMaintanance));
-        FileUtils.writeStringToFile(readyInMainenanceFile, Boolean.toString(readyInMainenance));
+        Files.write(liveFile, Boolean.toString(live).getBytes(StandardCharsets.UTF_8));
+        Files.write(readyFile, Boolean.toString(ready).getBytes(StandardCharsets.UTF_8));
+        Files.write(inMainenanceFile, Boolean.toString(inMaintanance).getBytes(StandardCharsets.UTF_8));
+        Files.write(readyInMainenanceFile, Boolean.toString(readyInMainenance).getBytes(StandardCharsets.UTF_8));
         new Administration(ManagementClientProvider.onlineStandalone()).reload();
 
     }

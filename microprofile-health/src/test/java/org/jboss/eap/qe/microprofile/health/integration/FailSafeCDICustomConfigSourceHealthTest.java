@@ -1,15 +1,18 @@
 package org.jboss.eap.qe.microprofile.health.integration;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import org.apache.commons.io.FileUtils;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.as.arquillian.api.ServerSetup;
 import org.jboss.as.arquillian.api.ServerSetupTask;
 import org.jboss.as.arquillian.container.ManagementClient;
+import org.jboss.eap.qe.microprofile.tooling.server.ModuleUtil;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
@@ -17,7 +20,6 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.runner.RunWith;
-import org.wildfly.extras.creaper.commands.modules.RemoveModule;
 import org.wildfly.extras.creaper.core.online.OnlineManagementClient;
 
 @RunWith(Arquillian.class)
@@ -25,7 +27,7 @@ import org.wildfly.extras.creaper.core.online.OnlineManagementClient;
 @ServerSetup({ MicroProfileFTSetupTask.class, FailSafeCDICustomConfigSourceHealthTest.SetupTask.class })
 public class FailSafeCDICustomConfigSourceHealthTest extends FailSafeCDIHealthDynamicBaseTest {
     private static final String PROPERTY_FILENAME = "health.properties";
-    File propertyFile = new File(FailSafeCDICustomConfigSourceHealthTest.class.getResource(PROPERTY_FILENAME).getFile());
+    Path propertyFile = Paths.get(FailSafeCDICustomConfigSourceHealthTest.class.getResource(PROPERTY_FILENAME).getPath());
     private byte[] bytes;
 
     @Deployment(testable = false)
@@ -39,12 +41,12 @@ public class FailSafeCDICustomConfigSourceHealthTest extends FailSafeCDIHealthDy
 
     @Before
     public void backup() throws IOException {
-        bytes = FileUtils.readFileToByteArray(propertyFile);
+        bytes = Files.readAllBytes(propertyFile);
     }
 
     @After
     public void restore() throws IOException {
-        FileUtils.writeByteArrayToFile(propertyFile, bytes);
+        Files.write(propertyFile, bytes);
     }
 
     @Override
@@ -54,7 +56,8 @@ public class FailSafeCDICustomConfigSourceHealthTest extends FailSafeCDIHealthDy
                 FailSafeDummyService.READY_CONFIG_PROPERTY, ready,
                 FailSafeDummyService.READY_IN_MAINTENANCE_CONFIG_PROPERTY, readyInMainenance,
                 FailSafeDummyService.IN_MAINTENANCE_CONFIG_PROPERTY, inMaintanance);
-        FileUtils.writeStringToFile(propertyFile, content);
+        // TODO Java 11 API way - Files.writeString(propertyFilePath, INCREMENT_CONFIG_PROPERTY + "=" + increment);
+        Files.write(propertyFile, content.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -68,8 +71,10 @@ public class FailSafeCDICustomConfigSourceHealthTest extends FailSafeCDIHealthDy
             OnlineManagementClient client = ManagementClientProvider.onlineStandalone();
             client.execute(String.format("/system-property=%s:add(value=%s)", CustomConfigSource.FILEPATH_PROPERTY,
                     SetupTask.class.getResource(PROPERTY_FILENAME).getFile()));
-            ModuleUtil.setupModule(client, new File(SetupTask.class.getResource("configSourceModule.xml").toURI()),
-                    TEST_MODULE_NAME, "config-source", CustomConfigSource.class);
+            ModuleUtil.add(TEST_MODULE_NAME)
+                    .setModuleXMLPath(SetupTask.class.getResource("configSourceModule.xml").getPath())
+                    .addResource("config-source", CustomConfigSource.class)
+                    .executeOn(client);
             client.execute(String.format(
                     "/subsystem=microprofile-config-smallrye/config-source=cs-from-class:add(class={module=%s, name=%s})",
                     TEST_MODULE_NAME, CustomConfigSource.class.getName()));
@@ -80,7 +85,7 @@ public class FailSafeCDICustomConfigSourceHealthTest extends FailSafeCDIHealthDy
             OnlineManagementClient client = ManagementClientProvider.onlineStandalone();
             client.execute(String.format("/system-property=%s:remove", CustomConfigSource.FILEPATH_PROPERTY));
             client.execute("/subsystem=microprofile-config-smallrye/config-source=cs-from-class:remove");
-            ManagementClientProvider.onlineStandalone().apply(new RemoveModule(TEST_MODULE_NAME));
+            ModuleUtil.remove(TEST_MODULE_NAME).executeOn(client);
         }
     }
 }
