@@ -14,7 +14,7 @@ import org.eclipse.microprofile.metrics.annotation.Counted;
 @ApplicationScoped
 public class FailSafeDummyService {
 
-    public static final int MAX_RETRIES = 2;
+    public static final int MAX_RETRIES = 5;
 
     public static final String LIVE_CONFIG_PROPERTY = "dummy.live";
     public static final String READY_CONFIG_PROPERTY = "dummy.ready";

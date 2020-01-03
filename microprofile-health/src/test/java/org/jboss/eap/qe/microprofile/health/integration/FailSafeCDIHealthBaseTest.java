@@ -1,8 +1,10 @@
 package org.jboss.eap.qe.microprofile.health.integration;
 
+import static io.restassured.RestAssured.get;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -19,13 +21,17 @@ import java.util.concurrent.TimeoutException;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.as.arquillian.api.ContainerResource;
 import org.jboss.as.arquillian.container.ManagementClient;
+import org.jboss.eap.qe.microprofile.health.tools.HealthUrlProvider;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.ConfigurationException;
+import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianContainerProperties;
+import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianDescriptorWrapper;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
 import org.junit.Before;
 import org.junit.Test;
 import org.wildfly.extras.creaper.core.online.operations.admin.Administration;
 
 import io.restassured.http.ContentType;
+import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
 
 public abstract class FailSafeCDIHealthBaseTest {
@@ -56,7 +62,8 @@ public abstract class FailSafeCDIHealthBaseTest {
     @RunAsClient
     public void testHealthEndpointUp() throws Exception {
         setConfigProperties(true, true, false, false);
-        healthRequest.get().then()
+        get(HealthUrlProvider.healthEndpoint()).then()
+                .contentType(ContentType.JSON)
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .header("Content-Type", containsString("application/json"))
@@ -65,6 +72,27 @@ public abstract class FailSafeCDIHealthBaseTest {
                         "checks.status", hasItems("UP"),
                         "checks.status", not(hasItems("DOWN")),
                         "checks.name", containsInAnyOrder("dummyLiveness", "dummyReadiness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(1)
+                .validateInvocationsTotal(1)
+                .validateRetryCallsSucceededNotTriedTotal(1);
+
+        get(HealthUrlProvider.healthEndpoint()).then()
+                .contentType(ContentType.JSON)
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .header("Content-Type", containsString("application/json"))
+                .body("status", is("UP"),
+                        "checks", hasSize(2),
+                        "checks.status", hasItems("UP"),
+                        "checks.status", not(hasItems("DOWN")),
+                        "checks.name", containsInAnyOrder("dummyLiveness", "dummyReadiness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(2)
+                .validateInvocationsTotal(2)
+                .validateRetryCallsSucceededNotTriedTotal(2);
     }
 
     /**
@@ -77,7 +105,7 @@ public abstract class FailSafeCDIHealthBaseTest {
     @RunAsClient
     public void testLivenessEndpointUp() throws Exception {
         setConfigProperties(true, true, false, false);
-        healthRequest.basePath("health/live").get().then()
+        get(HealthUrlProvider.liveEndpoint()).then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .header("Content-Type", containsString("application/json"))
@@ -85,6 +113,25 @@ public abstract class FailSafeCDIHealthBaseTest {
                         "checks", hasSize(1),
                         "checks.status", hasItems("UP"),
                         "checks.name", containsInAnyOrder("dummyLiveness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(1)
+                .validateInvocationsTotal(1)
+                .validateRetryCallsSucceededNotTriedTotal(1);
+
+        get(HealthUrlProvider.liveEndpoint()).then()
+                .statusCode(200)
+                .contentType(ContentType.JSON)
+                .header("Content-Type", containsString("application/json"))
+                .body("status", is("UP"),
+                        "checks", hasSize(1),
+                        "checks.status", hasItems("UP"),
+                        "checks.name", containsInAnyOrder("dummyLiveness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(2)
+                .validateInvocationsTotal(2)
+                .validateRetryCallsSucceededNotTriedTotal(2);
     }
 
     /**
@@ -111,7 +158,7 @@ public abstract class FailSafeCDIHealthBaseTest {
                 put("status", "DOWN");
             }
         }));
-        healthRequest.basePath("health/ready").get().then()
+        get(HealthUrlProvider.readyEndpoint()).then()
                 .statusCode(200)
                 .contentType(ContentType.JSON)
                 .header("Content-Type", containsString("application/json"))
@@ -144,13 +191,39 @@ public abstract class FailSafeCDIHealthBaseTest {
                 put("status", "DOWN");
             }
         });
-        healthRequest.get().then()
+        get(HealthUrlProvider.healthEndpoint()).then()
                 .statusCode(503)
                 .contentType(ContentType.JSON)
                 .header("Content-Type", containsString("application/json"))
                 .body("status", is("DOWN"),
                         "checks", hasSize(2),
                         "checks", containsInAnyOrder(liveCheck, readyCheck));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(FailSafeDummyService.MAX_RETRIES + 1) // 1 call + N retries
+                .validateInvocationsTotal(1)
+                .validateInvocationsFailedTotal(1)
+                .validateRetryRetriesTotal(FailSafeDummyService.MAX_RETRIES) // N retries
+                .validateRetryCallsFailedTotal(1)
+                .validateRetryCallsSucceededTotal(0)
+                .validateFallbackCallsTotal(1);
+
+        get(HealthUrlProvider.healthEndpoint()).then()
+                .statusCode(503)
+                .contentType(ContentType.JSON)
+                .header("Content-Type", containsString("application/json"))
+                .body("status", is("DOWN"),
+                        "checks", hasSize(2),
+                        "checks", containsInAnyOrder(liveCheck, readyCheck));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(FailSafeDummyService.MAX_RETRIES * 2 + 2) // 2 calls + 2N retries
+                .validateInvocationsTotal(2)
+                .validateInvocationsFailedTotal(2)
+                .validateRetryRetriesTotal(FailSafeDummyService.MAX_RETRIES * 2) // 2N retries
+                .validateRetryCallsFailedTotal(2)
+                .validateRetryCallsSucceededTotal(0)
+                .validateFallbackCallsTotal(2);
     }
 
     /**
@@ -163,7 +236,7 @@ public abstract class FailSafeCDIHealthBaseTest {
     @RunAsClient
     public void testLivenessEndpointDownInMaintenace() throws Exception {
         setConfigProperties(false, true, true, false);
-        healthRequest.basePath("health/live").get().then()
+        get(HealthUrlProvider.liveEndpoint()).then()
                 .statusCode(503)
                 .contentType(ContentType.JSON)
                 .header("Content-Type", containsString("application/json"))
@@ -171,6 +244,33 @@ public abstract class FailSafeCDIHealthBaseTest {
                         "checks", hasSize(1),
                         "checks.status", hasItems("DOWN"),
                         "checks.name", containsInAnyOrder("dummyLiveness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(FailSafeDummyService.MAX_RETRIES + 1) // 1 call + N retries
+                .validateInvocationsTotal(1)
+                .validateInvocationsFailedTotal(1)
+                .validateRetryRetriesTotal(FailSafeDummyService.MAX_RETRIES) // N retries
+                .validateRetryCallsFailedTotal(1)
+                .validateRetryCallsSucceededTotal(0)
+                .validateFallbackCallsTotal(1);
+
+        get(HealthUrlProvider.liveEndpoint()).then()
+                .statusCode(503)
+                .contentType(ContentType.JSON)
+                .header("Content-Type", containsString("application/json"))
+                .body("status", is("DOWN"),
+                        "checks", hasSize(1),
+                        "checks.status", hasItems("DOWN"),
+                        "checks.name", containsInAnyOrder("dummyLiveness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(FailSafeDummyService.MAX_RETRIES * 2 + 2) // 2 calls + 2N retries
+                .validateInvocationsTotal(2)
+                .validateInvocationsFailedTotal(2)
+                .validateRetryRetriesTotal(FailSafeDummyService.MAX_RETRIES * 2) // 2N retries
+                .validateRetryCallsFailedTotal(2)
+                .validateRetryCallsSucceededTotal(0)
+                .validateFallbackCallsTotal(2);
     }
 
     /**
@@ -183,7 +283,7 @@ public abstract class FailSafeCDIHealthBaseTest {
     @RunAsClient
     public void testReadinessEndpointDownInMaintenace() throws Exception {
         setConfigProperties(false, true, true, false);
-        healthRequest.basePath("health/ready").get().then()
+        get(HealthUrlProvider.readyEndpoint()).then()
                 .statusCode(503)
                 .contentType(ContentType.JSON)
                 .header("Content-Type", containsString("application/json"))
@@ -191,9 +291,104 @@ public abstract class FailSafeCDIHealthBaseTest {
                         "checks", hasSize(1),
                         "checks.status", hasItems("DOWN"),
                         "checks.name", containsInAnyOrder("dummyReadiness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(FailSafeDummyService.MAX_RETRIES + 1) // 1 call + N retries
+                .validateInvocationsTotal(1)
+                .validateInvocationsFailedTotal(1)
+                .validateRetryRetriesTotal(FailSafeDummyService.MAX_RETRIES) // N retries
+                .validateRetryCallsFailedTotal(1)
+                .validateRetryCallsSucceededTotal(0)
+                .validateFallbackCallsTotal(1);
+
+        get(HealthUrlProvider.readyEndpoint()).then()
+                .statusCode(503)
+                .contentType(ContentType.JSON)
+                .header("Content-Type", containsString("application/json"))
+                .body("status", is("DOWN"),
+                        "checks", hasSize(1),
+                        "checks.status", hasItems("DOWN"),
+                        "checks.name", containsInAnyOrder("dummyReadiness"));
+
+        MetricsChecker.get()
+                .validateSimulationCounter(FailSafeDummyService.MAX_RETRIES * 2 + 2) // 2 calls + 2N retries
+                .validateInvocationsTotal(2)
+                .validateInvocationsFailedTotal(2)
+                .validateRetryRetriesTotal(FailSafeDummyService.MAX_RETRIES * 2) // 2N retries
+                .validateRetryCallsFailedTotal(2)
+                .validateRetryCallsSucceededTotal(0)
+                .validateFallbackCallsTotal(2);
     }
 
-    public void checkMetrics(int simulationCount, int invocationsTotal, int invocationsFailedTotal, int retriesTotal, int fallbackTotal) {
+    public static class MetricsChecker {
+        public static MetricsChecker get() throws ConfigurationException {
+            return new MetricsChecker();
+        }
+
+        private final ValidatableResponse response;
+
+        private MetricsChecker() throws ConfigurationException {
+            ArquillianContainerProperties arqProps = new ArquillianContainerProperties(
+                    ArquillianDescriptorWrapper.getArquillianDescriptor());
+            String url = "http://" + arqProps.getDefaultManagementAddress() + ":" + arqProps.getDefaultManagementPort()
+                    + "/metrics";
+
+            response = given()
+                    .baseUri(url)
+                    .accept(ContentType.JSON)
+                    .get()
+                    .then();
+        }
+
+        public MetricsChecker validateSimulationCounter(int simulationCount) {
+            response.body("application.simulation-count", equalTo(simulationCount));
+            return this;
+        }
+
+        public MetricsChecker validateRetryRetriesTotal(int retriesTotal) {
+            response.body("application.'ft." + FailSafeDummyService.class.getName() + ".isReady.retry.retries.total'",
+                    equalTo(retriesTotal));
+            return this;
+        }
+
+        public MetricsChecker validateRetryCallsFailedTotal(int callsFailedTotal) {
+            response.body("application.'ft." + FailSafeDummyService.class.getName() + ".isReady.retry.callsFailed.total'",
+                    equalTo(callsFailedTotal));
+            return this;
+        }
+
+        public MetricsChecker validateRetryCallsSucceededTotal(int callsSucceededTotal) {
+            response.body(
+                    "application.'ft." + FailSafeDummyService.class.getName() + ".isReady.retry.callsSucceededRetried.total'",
+                    equalTo(callsSucceededTotal));
+            return this;
+        }
+
+        public MetricsChecker validateRetryCallsSucceededNotTriedTotal(int callsSucceededNotTriedTotal) {
+            response.body(
+                    "application.'ft." + FailSafeDummyService.class.getName()
+                            + ".isReady.retry.callsSucceededNotRetried.total'",
+                    equalTo(callsSucceededNotTriedTotal));
+            return this;
+        }
+
+        public MetricsChecker validateInvocationsTotal(int invocationsTotal) {
+            response.body("application.'ft." + FailSafeDummyService.class.getName() + ".isReady.invocations.total'",
+                    equalTo(invocationsTotal));
+            return this;
+        }
+
+        public MetricsChecker validateInvocationsFailedTotal(int invocationsFailedTotal) {
+            response.body("application.'ft." + FailSafeDummyService.class.getName() + ".isReady.invocations.failed.total'",
+                    equalTo(invocationsFailedTotal));
+            return this;
+        }
+
+        public MetricsChecker validateFallbackCallsTotal(int fallbackCallsTotal) {
+            response.body("application.'ft." + FailSafeDummyService.class.getName() + ".isReady.invocations.total'",
+                    equalTo(fallbackCallsTotal));
+            return this;
+        }
 
     }
 }
