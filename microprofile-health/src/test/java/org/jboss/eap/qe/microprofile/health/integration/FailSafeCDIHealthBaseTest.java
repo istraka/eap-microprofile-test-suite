@@ -192,4 +192,8 @@ public abstract class FailSafeCDIHealthBaseTest {
                         "checks.status", hasItems("DOWN"),
                         "checks.name", containsInAnyOrder("dummyReadiness"));
     }
+
+    public void checkMetrics(int simulationCount, int invocationsTotal, int invocationsFailedTotal, int retriesTotal, int fallbackTotal) {
+
+    }
 }

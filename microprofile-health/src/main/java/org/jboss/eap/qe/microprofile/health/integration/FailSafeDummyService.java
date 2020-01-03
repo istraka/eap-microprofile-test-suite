@@ -2,6 +2,7 @@ package org.jboss.eap.qe.microprofile.health.integration;
 
 import java.io.IOException;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
@@ -10,7 +11,10 @@ import org.eclipse.microprofile.faulttolerance.Fallback;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.metrics.annotation.Counted;
 
+@ApplicationScoped
 public class FailSafeDummyService {
+
+    public static final int MAX_RETRIES = 2;
 
     public static final String LIVE_CONFIG_PROPERTY = "dummy.live";
     public static final String READY_CONFIG_PROPERTY = "dummy.ready";
@@ -33,14 +37,17 @@ public class FailSafeDummyService {
     @ConfigProperty(name = IN_MAINTENANCE_CONFIG_PROPERTY)
     private Provider<Boolean> inMaintanance;
 
+    @Inject
+    FailSafeDummyService service;
+
     public boolean isLive() {
         return live.get();
     }
 
     @Fallback(fallbackMethod = "isReadyFallback")
-    @Retry(maxRetries = 5)
+    @Retry(maxRetries = MAX_RETRIES)
     public boolean isReady() throws IOException {
-        simulateOpeningResources();
+        service.simulateOpeningResources();
         return ready.get();
     }
 
@@ -48,7 +55,7 @@ public class FailSafeDummyService {
         return readyInMainenance.get();
     }
 
-    @Counted(name = "hello-count", absolute = true, displayName = "Hello Count", description = "Number of hello invocations", reusable = true)
+    @Counted(name = "simulation-count", absolute = true, displayName = "Simulation Count", description = "Number of simulateOpeningResources invocations", reusable = true)
     public void simulateOpeningResources() throws IOException {
         if (inMaintanance.get()) {
             throw new IOException("In maintanance");
