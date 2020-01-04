@@ -1,6 +1,15 @@
 package org.jboss.eap.qe.microprofile.health.integration;
 
-import io.restassured.http.ContentType;
+import static io.restassured.RestAssured.get;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit.Arquillian;
@@ -18,15 +27,7 @@ import org.junit.runner.RunWith;
 import org.wildfly.extras.creaper.core.online.OnlineManagementClient;
 import org.wildfly.extras.creaper.core.online.operations.admin.Administration;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
-import static io.restassured.RestAssured.get;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
+import io.restassured.http.ContentType;
 
 @RunWith(Arquillian.class)
 @RunAsClient
@@ -70,7 +71,6 @@ public class Reproducers extends FailSafeCDIHealthBaseTest {
         }
     }
 
-
     @Test
     @RunAsClient
     public void retryCallsSucceededCounter() throws Exception {
@@ -104,7 +104,6 @@ public class Reproducers extends FailSafeCDIHealthBaseTest {
                 .validateRetryCallsFailedTotal(1)
                 .validateRetryCallsSucceededTotal(0);
     }
-
 
     @Test
     @RunAsClient
