@@ -23,9 +23,11 @@ import org.jboss.eap.qe.microprofile.health.tools.HealthUrlProvider;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.ConfigurationException;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianContainerProperties;
 import org.jboss.eap.qe.microprofile.tooling.server.configuration.arquillian.ArquillianDescriptorWrapper;
+import org.jboss.eap.qe.microprofile.tooling.server.configuration.creaper.ManagementClientProvider;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.wildfly.extras.creaper.core.online.operations.admin.Administration;
 
 import io.restassured.http.ContentType;
 import io.restassured.response.ValidatableResponse;
@@ -44,6 +46,8 @@ public abstract class FailSafeCDIHealthBaseTest {
         String url = "http://" + arqProps.getDefaultManagementAddress() + ":" + arqProps.getDefaultManagementPort()
                 + "/metrics";
         metricsRequest = given().baseUri(url).accept(ContentType.JSON);
+        // reset MP Config properties
+        new Administration(ManagementClientProvider.onlineStandalone(managementClient)).reload();
     }
 
     protected abstract void setConfigProperties(boolean live, boolean ready, boolean inMaintanance, boolean readyInMainenance)
