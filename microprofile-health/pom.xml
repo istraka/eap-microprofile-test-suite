@@ -45,4 +45,48 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${version.org.apache.maven.plugins.maven-surefire-plugin}</version>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <configuration>
+                            <excludes><exclude>org.jboss.eap.qe.microprofile.health.delay.NotReadyHealthCheckTest</exclude></excludes>
+                            <environmentVariables>
+                                <JBOSS_HOME>${jboss.home}</JBOSS_HOME>
+                            </environmentVariables>
+                            <systemPropertyVariables>
+                                <jboss.home>${jboss.home}</jboss.home>
+                                <arquillian.xml>${maven.multiModuleProjectDirectory}/arquillian.xml</arquillian.xml>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>manual-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <includes><include>org.jboss.eap.qe.microprofile.health.delay.NotReadyHealthCheckTest</include></includes>
+                            <environmentVariables>
+                                <JBOSS_HOME>${jboss.home}</JBOSS_HOME>
+                            </environmentVariables>
+                            <systemPropertyVariables>
+                                <jboss.home>${jboss.home}</jboss.home>
+                                <arquillian.xml>${maven.multiModuleProjectDirectory}/arquillian.xml</arquillian.xml>
+                                <arquillian.launch>jboss-manual</arquillian.launch>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
